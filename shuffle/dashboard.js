@@ -19,7 +19,7 @@ function dashboard() {
 		sortIndex = 0,
 		timelineDimensions = [],
 		brushes = [],
-		uniqueDimension = "personID",
+		uniqueDimension = null,
 		filterColor = "#A8DDB5";
 
 	function my(sel) {
@@ -31,9 +31,12 @@ function dashboard() {
 			listMap.values().map(function(l) {
 				// Only update non-collapsed nodes (jScrollPane manipulates the DOM so we have to go 2
 				// more "parentNode"s up than we would have to without it).
-				if(!$(l.actions.selection.node().parentNode.parentNode.parentNode).hasClass("collapsed"))
-					l.actions.update(action);
-			});
+				if(l.actions.selection.node() !== null) {
+					if(!$(l.actions.selection.node().parentNode.parentNode.parentNode).hasClass("collapsed"))
+						l.actions.update(action);
+					}
+				}
+			);
 
 			updateFilter();
 			updateGrid();
@@ -86,7 +89,44 @@ function dashboard() {
 			timelineFilters = timelineConfig.map(function() { return null; });
 
 			timelineGroups = timelineConfig.map(function(t, i) {
-				return timelineDimensions[i].group(function(d) { return Math.floor(d/t.groupBy)*t.groupBy; });
+				var g = timelineDimensions[i].group(function(d) { return Math.floor(d/t.groupBy)*t.groupBy; });
+
+				// Don't double-count by using add/reduce based on unique dimension
+
+				var internalCount;
+				function reduceAdd(p, v) {
+					if(p.unique.has(v[uniqueDimension])) {
+					  internalCount = p.unique.get(v[uniqueDimension]);
+					  p.unique.set(v[uniqueDimension], internalCount + 1);
+					} else {
+					  p.unique.set(v[uniqueDimension], 1);
+					  ++p.count;
+					}
+					return p;
+				}
+
+				function reduceRemove(p, v) {
+				  if(p.unique.has(v[uniqueDimension])) {
+				    internalCount = p.unique.get(v[uniqueDimension]);
+				    if(internalCount == 1) {
+				      p.unique.remove(v[uniqueDimension]);
+				      --p.count;
+				    } else {
+				      p.unique.set(v[uniqueDimension], internalCount - 1);
+				    }
+				  }
+				  return p;
+				}
+
+				function reduceInitial() {
+				  return {unique: d3.map(), count: 0};
+				}
+
+				if(uniqueDimension !== null) {
+				  g.reduce(reduceAdd, reduceRemove, reduceInitial);
+				}
+
+				return g;
 			});
 
 			var timelines = timelineArea.selectAll("li")
@@ -223,7 +263,7 @@ function dashboard() {
 					x = d3.scale.linear().range([0, (timelineConfig[i].width - (2*margin))])
 						.domain([lowestTime, highestTime]),
 					y = d3.scale.linear().range([0, timelineConfig[i].height])
-						.domain([0, topNonZeroValues[0].value]),
+						.domain([0, topNonZeroValues[0].value.count]),
 					ticks = timelineGroups.map(function(g) { return g.key; }),
 					axis = d3.svg.axis().orient("bottom")
 									.scale(x)
@@ -258,8 +298,14 @@ function dashboard() {
 				var filterBottom = Math.floor(brush.extent()[0]/timelineConfig[i].groupBy)*timelineConfig[i].groupBy,
 						filterTop = Math.ceil(brush.extent()[1]/timelineConfig[i].groupBy)*timelineConfig[i].groupBy;
 
-				timelineDimensions[i].filterRange([filterBottom, filterTop]);
-				timelineFilters[i] = "" + filterBottom + " - " + filterTop;
+      	if (brush.empty()) {
+        	timelineDimensions[i].filterAll();
+        	timelineFilters[i] = null;
+      	} else {
+      		timelineDimensions[i].filterRange([filterBottom, filterTop]);
+					timelineFilters[i] = "" + filterBottom + " - " + filterTop;
+      	}
+
 				updateAll();
 			});
 
@@ -297,15 +343,15 @@ function dashboard() {
 					x = d3.scale.linear().range([0, (timelineConfig[i].width - (2*margin))])
 						.domain([lowestTime, highestTime]),
 					y = d3.scale.linear().range([0, timelineConfig[i].height])
-						.domain([0, topNonZeroValues[0].value]),
+						.domain([0, topNonZeroValues[0].value.count]),
 					height = timelineConfig[i].height + (2 * margin);
 
 			var rects = t.select("svg").select("g").selectAll("rect")
 				.data(timelineGroups);
 
-			rects.transition().attr("height", function(d) { return y(d.value); })
+			rects.transition().attr("height", function(d) { return y(d.value.count); })
 				.attr("transform", function(d, i) {
-					return "translate(" + x(d.key) + ", " + (height - y(d.value) - margin) + ")";
+					return "translate(" + x(d.key) + ", " + (height - y(d.value.count) - margin) + ")";
 				});
 
 		}
@@ -328,7 +374,7 @@ function dashboard() {
 					groupPosition++;
 					return { key: d, value: groups[groupPosition-1].value };
 				} else {
-					return { key: d, value: 0 };
+					return { key: d, value: { count: 0 } };
 				}
 			});
 		}

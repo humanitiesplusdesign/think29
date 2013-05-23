@@ -65,14 +65,20 @@ function run() {
 	// We need to convert this data set so that there is one row for every combination of
 	// values in the various "Network" attribute columns.
 
-	var	attrsToExplode = ["Knowledge Network", "Professional Network", "Religious Network", "Social Network"];
+	var	attrsToExplode = ["Knowledge Networks", "Professional Networks", "Religious Networks", "Social Networks"];
 	var tempArr = [];
 	var tempRow = {};
 	var card = 1;
 
 	d3.tsv.parse(tsvData, function(d) {
-		d["Birth Year"] = +d["Birth Year"];
-		d["Death Year"] = +d["Death Year"];
+		if(d["Date of birth"]) {
+			d["Birth Year"] = d["Date of birth"].substring(0,4);
+		}
+		if(d["Date of death"]) {
+			d["Death Year"] = d["Date of death"].substring(0,4);
+		}
+		d["Full Name"] = d["First Name"] + " " + d["Last Name"];
+		d["Full Name Reversed"] = d["Last Name"] + d["First Name"];
 		return d;
 	}).map(function(r) {  // Start by splitting the comma-delimited values into arrays
 		attrsToExplode.forEach(function(k) {
@@ -129,28 +135,20 @@ function run() {
 
 		var listData = people.map(function(d) {
 
-			if(d["Wikipedia URL"] === undefined || d["Wikipedia URL"] === "") {
-				d["Wikipedia URL"] = "http://www.wikipedia.org";
-			}
+			d["VIAF URL"] = "http://viaf.org/viaf/" + d["VIAF ID"];
 
 			if(d["Wikipedia Image Link"] === undefined || d["Wikipedia Image Link"] === "") {
-				if(d["GenderGroup"] == "Male") {
+				if(d["Gender"] == "Male") {
 					d["Wikipedia Image Link"] = "img/man.jpg";
 				} else {
 					d["Wikipedia Image Link"] = "img/woman.jpg";
 				}
 			}
 
-			// Handle links to images that don't include "http://"
-			if(d["Wikipedia Image Link"].substring(0,6) !== "http://" &&
-					d["Wikipedia Image Link"].substring(0,4) !== "img/") {
-				d["Wikipedia Image Link"] = "http://" + d["Wikipedia Image Link"];
-			}
-
-			d["Religious Detail"] = d["Religious Network"].split("_")[1] + "";
-			d["Religious Network"] = d["Religious Network"].split("_")[0] + "";
-			d["Knowledge Detail"] = d["Knowledge Network"].split("_")[1] + "";
-			d["Knowledge Network"] = d["Knowledge Network"].split("_")[0] + "";
+			d["Religious Detail"] = d["Religious Networks"].split("_")[1] + "";
+			d["Religious Networks"] = d["Religious Networks"].split("_")[0] + "";
+			d["Knowledge Detail"] = d["Knowledge Networks"].split("_")[1] + "";
+			d["Knowledge Networks"] = d["Knowledge Networks"].split("_")[0] + "";
 
 			return d;
 		});
@@ -162,7 +160,7 @@ function run() {
 	////////////////////////////////////////////////////////////////////	
 
 		var dash = dashboard().data(listData);
-		dash.uniqueDimension("People ID");
+		dash.uniqueDimension("VIAF ID");
 		dash.expandedListConfig([{
 															attribute: "Birth Country",
 															description: "Birth Country",
@@ -178,8 +176,8 @@ function run() {
 																args: [200]
 															}]
 														}, {
-															attribute: "GenderGroup",
-															description: "Gender/Group",
+															attribute: "Gender",
+															description: "Gender",
 															configuration: [{
 																func: "width",
 																args: [200]
@@ -195,6 +193,12 @@ function run() {
 															attribute: "Death City",
 															description: "Death City"
 														}, {
+															attribute: "Birth Province or Region or State",
+															description: "Birth Area"
+														}, {
+															attribute: "Death Province or Region or State",
+															description: "Death Area"
+														}, {
 															attribute: "Full Name",
 															description: "Name",
 															configuration: [{
@@ -205,20 +209,20 @@ function run() {
 																args: [true]
 															}]
 														}, {
-															attribute: "Knowledge Network",
+															attribute: "Knowledge Networks",
 															description: "Knowledge",
 															configuration: [{
 																func: "width",
 																args: [200]
 															}]
 														}, {
-															attribute: "Professional Network",
+															attribute: "Professional Networks",
 															description: "Professional"
 														}, {
-															attribute: "Religious Network",
+															attribute: "Religious Networks",
 															description: "Religious"
 														}, {
-															attribute: "Social Network",
+															attribute: "Social Networks",
 															description: "Social"
 														}, {
 															attribute: "Knowledge Detail",
@@ -231,18 +235,11 @@ function run() {
 															attribute: "Religious Detail",
 															description: "Religious Detail"
 														}, {
-															attribute: "Source",
-															description: "Source"
-														}, {
-															attribute: "Ego Network",
-															description: "Ego Network",
-															configuration: [{
-																func: "width",
-																args: [250]
-															}]
+															attribute: "Title",
+															description: "Title"
 														}]);
 		dash.gridConfig({
-			attributeKey: "People ID",
+			attributeKey: "VIAF ID",
 			numberToDisplay: Infinity,
 			titleFunc: function(d) {
 				var fn = "No name";
@@ -265,7 +262,7 @@ function run() {
 				return d.Nationality;
 			},
 			linkFunc: function(d) {
-				return d["Wikipedia URL"];
+				return d["VIAF URL"];
 			},
 			sortOptions: [
 				{ title: "Name", attribute: "Full Name Reversed" },
