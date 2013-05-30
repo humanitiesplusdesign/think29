@@ -149,6 +149,10 @@ function run() {
 			d["Religious Networks"] = d["Religious Networks"].split("_")[0] + "";
 			d["Knowledge Detail"] = d["Knowledge Networks"].split("_")[1] + "";
 			d["Knowledge Networks"] = d["Knowledge Networks"].split("_")[0] + "";
+			d["Professional Detail"] = d["Professional Networks"].split("_")[1] + "";
+			d["Professional Networks"] = d["Professional Networks"].split("_")[0] + "";
+			d["Social Detail"] = d["Social Networks"].split("_")[1] + "";
+			d["Social Networks"] = d["Social Networks"].split("_")[0] + "";
 
 			return d;
 		});
@@ -231,6 +235,12 @@ function run() {
 																func: "width",
 																args: [200]
 															}]
+														}, {
+															attribute: "Social Detail",
+															description: "Social Detail"
+														}, {
+															attribute: "Professional Detail",
+															description: "Professional Detail"
 														}, {
 															attribute: "Religious Detail",
 															description: "Religious Detail"
